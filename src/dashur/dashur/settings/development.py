@@ -40,8 +40,14 @@ try:
     INSTALLED_APPS += ['debug_toolbar']
     MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
     INTERNAL_IPS = ['127.0.0.1']
+    DEBUG_TOOLBAR_CONFIG = {
+        'SHOW_TOOLBAR_CALLBACK': lambda request: True,
+        'RESULTS_CACHE_SIZE': 100,
+    }
+    print("Debug toolbar: ENABLED")
 except ImportError:
-    pass
+    print("Debug toolbar: DISABLED (debug_toolbar not installed)")
+    # Optional: Install with: pip install django-debug-toolbar
 
 # Logging for development
 LOGGING['loggers']['django']['level'] = 'DEBUG'

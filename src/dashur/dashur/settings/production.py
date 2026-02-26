@@ -24,6 +24,17 @@ CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',')
 CORS_ALLOW_CREDENTIALS = True
 
 # Database configuration for production
+# Validate required database environment variables
+required_db_vars = ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT']
+missing_vars = []
+
+for var in required_db_vars:
+    if not config(var, default=None):
+        missing_vars.append(var)
+
+if missing_vars:
+    raise ValueError(f"Missing required database environment variables: {', '.join(missing_vars)}")
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',

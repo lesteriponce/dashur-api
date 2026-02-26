@@ -2,14 +2,25 @@
 Utility functions for Dashur API.
 """
 import logging
+from typing import Optional, Dict, Any, Tuple, Union
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
+from django.http import HttpRequest
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 logger = logging.getLogger('dashur')
 
 
-def api_response(success=True, data=None, message="Operation successful", status_code=status.HTTP_200_OK, errors=None):
+def api_response(
+    success: bool = True, 
+    data: Optional[Dict[str, Any]] = None, 
+    message: str = "Operation successful", 
+    status_code: int = status.HTTP_200_OK, 
+    errors: Optional[Dict[str, Any]] = None
+) -> Response:
     """
     Create a standardized API response.
     
@@ -38,7 +49,11 @@ def api_response(success=True, data=None, message="Operation successful", status
     return Response(response_data, status=status_code)
 
 
-def validate_file_upload(file_obj, allowed_types=None, max_size_mb=5):
+def validate_file_upload(
+    file_obj: Any, 
+    allowed_types: Optional[list] = None, 
+    max_size_mb: int = 10
+) -> Tuple[bool, Optional[str]]:
     """
     Validate uploaded file.
     
@@ -50,6 +65,9 @@ def validate_file_upload(file_obj, allowed_types=None, max_size_mb=5):
     Returns:
         tuple: (is_valid, error_message)
     """
+    if not file_obj:
+        return False, "No file provided"
+    
     if allowed_types is None:
         allowed_types = [
             'application/pdf',
@@ -62,17 +80,24 @@ def validate_file_upload(file_obj, allowed_types=None, max_size_mb=5):
         ]
     
     # Check file size
-    if file_obj.size > max_size_mb * 1024 * 1024:
-        return False, f"File size must be less than {max_size_mb}MB"
+    max_size_bytes = max_size_mb * 1024 * 1024
+    if file_obj.size > max_size_bytes:
+        return False, f"File size exceeds maximum limit of {max_size_mb}MB"
     
     # Check file type
     if file_obj.content_type not in allowed_types:
         return False, f"File type {file_obj.content_type} is not allowed"
     
+    # Check file extension
+    allowed_extensions = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.gif']
+    file_extension = file_obj.name.lower().split('.')[-1]
+    if f'.{file_extension}' not in allowed_extensions:
+        return False, f"File extension .{file_extension} is not allowed"
+    
     return True, None
 
 
-def get_client_ip(request):
+def get_client_ip(request: HttpRequest) -> str:
     """
     Get client IP address from request.
     
@@ -91,7 +116,13 @@ def get_client_ip(request):
     return ip
 
 
-def create_admin_user(email, password, first_name, last_name):
+def create_admin_user(
+    email: str, 
+    password: str, 
+    first_name: str, 
+    last_name: str, 
+    is_super_admin: bool = False
+) -> Any:
     """
     Create an admin user with hashed password.
     
@@ -100,25 +131,34 @@ def create_admin_user(email, password, first_name, last_name):
         password (str): Plain text password
         first_name (str): First name
         last_name (str): Last name
+        is_super_admin (bool): Whether user is super admin
     
     Returns:
-        User: Created admin user instance
+        AdminUser: Created admin user instance
     """
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
+    from authentication.models import AdminUser, User
     
-    admin_user = User.objects.create_superuser(
+    # Create the base user first
+    user = User.objects.create_user(
         email=email,
         password=password,
         first_name=first_name,
-        last_name=last_name
+        last_name=last_name,
+        is_staff=True,
+        is_superuser=is_super_admin
+    )
+    
+    # Create the admin user associated with the base user
+    admin_user = AdminUser.objects.create(
+        user=user,
+        is_super_admin=is_super_admin
     )
     
     logger.info(f"Admin user created: {email}")
     return admin_user
 
 
-def api_response_exception_handler(exc, context):
+def api_response_exception_handler(exc: Exception, context: Dict[str, Any]) -> Optional[Response]:
     """
     Custom exception handler for consistent API error responses.
     """
@@ -132,26 +172,36 @@ def api_response_exception_handler(exc, context):
     if response is not None:
         custom_response_data = {
             'success': False,
+            'data': {},
             'message': 'An error occurred',
-            'errors': response.data if hasattr(response, 'data') else {'detail': str(exc)},
+            'errors': {},
             'timestamp': timezone.now().isoformat(),
         }
         
         # Handle different types of exceptions
         if isinstance(exc, ValidationError):
             custom_response_data['message'] = 'Validation error'
+            custom_response_data['errors'] = exc.detail
+            response.status_code = status.HTTP_400_BAD_REQUEST
             
         elif isinstance(exc, NotAuthenticated):
             custom_response_data['message'] = 'Authentication required'
+            custom_response_data['errors'] = {'detail': 'Authentication credentials were not provided.'}
+            response.status_code = status.HTTP_401_UNAUTHORIZED
             
         elif isinstance(exc, PermissionDenied):
             custom_response_data['message'] = 'Permission denied'
+            custom_response_data['errors'] = {'detail': 'You do not have permission to perform this action.'}
+            response.status_code = status.HTTP_403_FORBIDDEN
             
         elif isinstance(exc, Http404):
             custom_response_data['message'] = 'Resource not found'
+            custom_response_data['errors'] = {'detail': 'The requested resource was not found.'}
+            response.status_code = status.HTTP_404_NOT_FOUND
             
         else:
             custom_response_data['message'] = str(exc)
+            custom_response_data['errors'] = {'detail': str(exc)}
         
         # Log the error
         logger.error(f"API Error: {exc}", exc_info=True)
@@ -161,7 +211,12 @@ def api_response_exception_handler(exc, context):
     return response
 
 
-def log_user_activity(user, action, details=None, request=None):
+def log_user_activity(
+    user: Optional[User], 
+    action: str, 
+    details: Optional[Dict[str, Any]] = None, 
+    request: Optional[HttpRequest] = None
+) -> None:
     """
     Log user activity for audit trail.
     

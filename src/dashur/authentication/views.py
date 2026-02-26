@@ -9,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from dashur.utils import api_response
+from utils import api_response
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer,
     UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer, UserSerializer
@@ -28,7 +28,7 @@ def register(request):
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        logger.info(f"New user registered: {user.email}")
+        logger.info(f"User registered: {user.email} from IP: {get_client_ip(request)}")
         
         # Generate tokens for the new user
         refresh = RefreshToken.for_user(user)
@@ -63,7 +63,7 @@ def login(request):
     serializer = UserLoginSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         user = serializer.validated_data['user']
-        logger.info(f"User logged in: {user.email}")
+        logger.info(f"User login: {user.email} from IP: {get_client_ip(request)}")
         
         # Generate tokens
         refresh = RefreshToken.for_user(user)

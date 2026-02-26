@@ -48,7 +48,7 @@ class RateLimitMiddleware(MiddlewareMixin):
         requests = cache.get(cache_key, 0)
         
         if requests > 100:  # 100 requests per minute
-            logger.warning(f"Rate limit exceeded for IP: {ip}")
+            logger.warning(f"Rate limit exceeded for IP: {ip} - Requests: {requests}/minute")
             return JsonResponse({
                 'success': False,
                 'message': 'Rate limit exceeded. Please try again later.',
@@ -68,13 +68,13 @@ class RequestLoggingMiddleware(MiddlewareMixin):
     
     def process_request(self, request):
         # Log API requests
-        if request.path.startswith('/api/'):
+        if settings.DEBUG:
             ip = get_client_ip(request)
             method = request.method
             path = request.path
             user = getattr(request.user, 'email', 'anonymous')
             
-            logger.info(f"API Request: {method} {path} - IP: {ip} - User: {user}")
+            logger.debug(f"API Request: {method} {path} - IP: {ip} - User: {user}")
         
         return None
 

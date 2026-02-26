@@ -1,6 +1,7 @@
 """
 Custom User model for the Dashur API.
 """
+from typing import Optional
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
 import logging
@@ -11,7 +12,12 @@ logger = logging.getLogger('dashur')
 class CustomUserManager(UserManager):
     """Custom user manager that uses email as the unique identifier."""
     
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(
+        self, 
+        email: str, 
+        password: Optional[str] = None, 
+        **extra_fields
+    ) -> 'User':
         """Create and save a User with the given email and password."""
         if not email:
             raise ValueError('The Email must be set')
@@ -21,7 +27,12 @@ class CustomUserManager(UserManager):
         user.save(using=self._db)
         return user
     
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(
+        self, 
+        email: str, 
+        password: Optional[str] = None, 
+        **extra_fields
+    ) -> 'User':
         """Create and save a SuperUser with the given email and password."""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
@@ -61,19 +72,19 @@ class User(AbstractUser):
         verbose_name_plural = 'Users'
         ordering = ['-created_at']
     
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.email} ({self.get_full_name()})"
     
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         """Return the user's full name."""
         return f"{self.first_name} {self.last_name}".strip()
     
-    def get_short_name(self):
+    def get_short_name(self) -> str:
         """Return the user's short name (first name)."""
         return self.first_name
     
-    def get_full_name(self):
+    def get_full_name(self) -> str:
         """Return the user's full name."""
         return self.full_name
 
@@ -101,6 +112,62 @@ class UserProfile(models.Model):
     
     def __str__(self):
         return f"{self.user.email} Profile"
+
+
+class AdminUser(models.Model):
+    """
+    Admin user model for administrative users.
+    Extends the base User model with admin-specific fields.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='admin_user')
+    is_super_admin = models.BooleanField(default=False, verbose_name='Super Admin')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+    
+    class Meta:
+        db_table = 'admin_users'
+        verbose_name = 'Admin User'
+        verbose_name_plural = 'Admin Users'
+        ordering = ['-created_at']
+    
+    def __str__(self) -> str:
+        return f"{self.user.email} (Admin: {'Super' if self.is_super_admin else 'Regular'})"
+    
+    @property
+    def email(self) -> str:
+        """Get the admin user's email."""
+        return self.user.email
+    
+    @property
+    def first_name(self) -> str:
+        """Get the admin user's first name."""
+        return self.user.first_name
+    
+    @property
+    def last_name(self) -> str:
+        """Get the admin user's last name."""
+        return self.user.last_name
+    
+    @property
+    def full_name(self) -> str:
+        """Get the admin user's full name."""
+        return self.user.full_name
+    
+    @property
+    def is_active(self) -> bool:
+        """Get the admin user's active status."""
+        return self.user.is_active
+    
+    def set_password(self, password: str) -> None:
+        """Set the admin user's password."""
+        self.user.set_password(password)
+        self.user.save()
+    
+    def save(self, *args, **kwargs) -> None:
+        """Override save to ensure the user is also saved."""
+        if self.user:
+            self.user.save()
+        super().save(*args, **kwargs)
 
 
 # Signal to create UserProfile when User is created
