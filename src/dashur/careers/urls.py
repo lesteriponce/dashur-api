@@ -14,6 +14,7 @@ urlpatterns = [
     
     # Job applications - read-only via API (JWT Authentication)
     path('applications/my/', views.my_applications, name='my_applications'),
+    path('applications/', views.JobApplicationListCreateView.as_view(), name='application_list_create'),
     
     # Statistics (JWT Authentication)
     path('stats/', views.application_stats, name='application_stats'),

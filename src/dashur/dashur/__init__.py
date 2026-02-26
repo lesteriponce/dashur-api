@@ -1,0 +1,3 @@
+"""
+Dashur project package.
+"""

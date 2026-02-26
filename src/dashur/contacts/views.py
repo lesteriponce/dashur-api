@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.mail import send_mail
 from django.conf import settings
-from utils import api_response
+from dashur.utils import api_response
 from .models import ContactSubmission, ContactResponse
 from .serializers import (
     ContactSubmissionSerializer, ContactSubmissionCreateSerializer,
@@ -19,9 +19,39 @@ from .serializers import (
 logger = logging.getLogger('dashur')
 
 
-class ContactSubmissionListCreateView(generics.ListCreateAPIView):
+def send_admin_notification(submission):
+    """Send email notification to admin about new submission."""
+    subject = f"New Contact Form Submission: {submission.subject}"
+    message = f"""
+    New contact form submission received:
+    
+    Name: {submission.full_name}
+    Email: {submission.email}
+    Phone: {submission.phone or 'Not provided'}
+    Subject: {submission.subject}
+    Message: {submission.message}
+    Priority: {submission.get_priority_display()}
+    
+    ---
+    This is an automated message from your Dashur API contact form.
     """
-    List and create contact submissions.
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.ADMIN_EMAIL],
+            fail_silently=False,
+        )
+        logger.info(f"Admin notification sent for: {submission.subject}")
+    except Exception as e:
+        logger.error(f"Failed to send admin notification email: {str(e)}")
+
+
+class ContactSubmissionListView(generics.ListAPIView):
+    """
+    List contact submissions.
     """
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -31,15 +61,13 @@ class ContactSubmissionListCreateView(generics.ListCreateAPIView):
     ordering = ['-created_at']
     
     def get_serializer_class(self):
-        if self.request.method == 'POST':
-            return ContactSubmissionCreateSerializer
         return ContactSubmissionListSerializer
     
     def get_queryset(self):
         user = self.request.user
         
         # Non-staff users can only see their own submissions
-        if not user.is_staff:
+        if not user.is_staff and user.is_authenticated:
             return ContactSubmission.objects.filter(email=user.email)
         
         # Staff can see all submissions
@@ -51,12 +79,19 @@ class ContactSubmissionListCreateView(generics.ListCreateAPIView):
         
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(
-                api_response(
-                    success=True,
-                    data=serializer.data,
-                    message="Contact submissions retrieved successfully"
-                ).data
+            # Get the default paginated response structure
+            response = self.get_paginated_response(serializer.data)
+            
+            # Extract pagination data and wrap with our API response format
+            return api_response(
+                success=True,
+                data={
+                    'count': response.data['count'],
+                    'next': response.data['next'],
+                    'previous': response.data['previous'],
+                    'results': response.data['results']
+                },
+                message="Contact submissions retrieved successfully"
             )
         
         serializer = self.get_serializer(queryset, many=True)
@@ -65,61 +100,41 @@ class ContactSubmissionListCreateView(generics.ListCreateAPIView):
             data=serializer.data,
             message="Contact submissions retrieved successfully"
         )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def create_contact_submission(request):
+    """
+    Create a contact submission.
+    Allows anonymous users to submit contact forms.
+    """
+    serializer = ContactSubmissionCreateSerializer(data=request.data, context={'request': request})
     
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        submission = serializer.save()
+        logger.info(f"Contact form submitted: {submission.full_name} - {submission.subject}")
         
-        if serializer.is_valid():
-            submission = serializer.save()
-            logger.info(f"Contact form submitted: {submission.full_name} - {submission.subject}")
-            
-            # Send notification email to admin
-            try:
-                self.send_admin_notification(submission)
-            except Exception as e:
-                logger.error(f"Failed to send admin notification: {str(e)}")
-            
-            response_serializer = ContactSubmissionSerializer(submission)
-            return api_response(
-                success=True,
-                data=response_serializer.data,
-                message="Contact form submitted successfully",
-                status_code=status.HTTP_201_CREATED
-            )
+        # Send notification email to admin
+        try:
+            send_admin_notification(submission)
+        except Exception as e:
+            logger.error(f"Failed to send admin notification: {str(e)}")
         
+        response_serializer = ContactSubmissionSerializer(submission)
         return api_response(
-            success=False,
-            message="Contact form submission failed",
-            errors=serializer.errors,
-            status_code=status.HTTP_400_BAD_REQUEST
+            success=True,
+            data=response_serializer.data,
+            message="Contact form submitted successfully",
+            status_code=status.HTTP_201_CREATED
         )
     
-    def send_admin_notification(self, submission):
-        """Send email notification to admin about new submission."""
-        subject = f"New Contact Form Submission: {submission.subject}"
-        message = f"""
-        New contact form submission received:
-        
-        Name: {submission.full_name}
-        Email: {submission.email}
-        Phone: {submission.phone or 'Not provided'}
-        Company: {submission.company or 'Not provided'}
-        Subject: {submission.subject}
-        Priority: {submission.priority}
-        
-        Message:
-        {submission.message}
-        
-        Created at: {submission.created_at}
-        """
-        
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@dashur.com'),
-            recipient_list=[getattr(settings, 'ADMIN_EMAIL', 'admin@dashur.com')],
-            fail_silently=False,
-        )
+    return api_response(
+        success=False,
+        message="Contact form submission failed",
+        errors=serializer.errors,
+        status_code=status.HTTP_400_BAD_REQUEST
+    )
 
 
 class ContactSubmissionDetailView(generics.RetrieveUpdateAPIView):

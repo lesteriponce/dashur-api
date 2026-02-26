@@ -8,7 +8,8 @@ app_name = 'contacts'
 
 urlpatterns = [
     # Contact submissions
-    path('', views.ContactSubmissionListCreateView.as_view(), name='submission_list_create'),
+    path('', views.ContactSubmissionListView.as_view(), name='submission_list_create'),
+    path('create/', views.create_contact_submission, name='submission_create'),
     path('<int:pk>/', views.ContactSubmissionDetailView.as_view(), name='submission_detail'),
     
     # Contact responses
