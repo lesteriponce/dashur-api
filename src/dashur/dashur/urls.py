@@ -17,7 +17,6 @@ urlpatterns = [
     path('api/auth/', include('authentication.urls')),
     path('api/careers/', include('careers.urls')),
     path('api/contacts/', include('contacts.urls')),
-    path('api/users/', include('users.urls')),
     
     # Admin endpoints (SessionAuthentication for file uploads)
     path('api/admin/careers/', include('careers.admin_urls')),

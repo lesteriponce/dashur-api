@@ -70,7 +70,6 @@ INSTALLED_APPS = [
     'authentication',
     'careers', 
     'contacts',
-    'users',
 ]
 
 MIDDLEWARE = [
