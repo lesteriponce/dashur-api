@@ -9,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from dashur.utils import api_response
+from utils import api_response
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer,
     UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer, UserSerializer

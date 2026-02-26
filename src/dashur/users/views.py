@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from dashur.utils import api_response, get_client_ip
+from utils import api_response, get_client_ip
 from .models import UserActivity, UserSession, UserPreference
 from .serializers import UserActivitySerializer, UserSessionSerializer, UserPreferenceSerializer
 

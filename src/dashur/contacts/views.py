@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.mail import send_mail
 from django.conf import settings
-from dashur.utils import api_response
+from utils import api_response
 from .models import ContactSubmission, ContactResponse
 from .serializers import (
     ContactSubmissionSerializer, ContactSubmissionCreateSerializer,

@@ -6,8 +6,8 @@ from rest_framework import status, permissions, generics, filters
 from rest_framework.decorators import api_view, permission_classes
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
-from dashur.utils import api_response
-from dashur.utils.views import FileUploadAPIView  # Import custom view for file uploads
+from utils import api_response
+from utils_views import FileUploadAPIView  # Import custom view for file uploads
 from .models import JobPosition, JobApplication, ApplicationStatusHistory
 from .serializers import (
     JobPositionSerializer, JobPositionCreateSerializer, JobPositionListSerializer,

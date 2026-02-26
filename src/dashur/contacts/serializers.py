@@ -3,7 +3,7 @@ Serializers for the contacts app.
 """
 from rest_framework import serializers
 from .models import ContactSubmission, ContactResponse
-from dashur.utils import get_client_ip
+from utils import get_client_ip
 
 
 class ContactSubmissionSerializer(serializers.ModelSerializer):

@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'wagtail.users',
     'wagtail.search',
     'wagtailmedia',
+    'taggit',
     
     # Local apps
     'authentication',
