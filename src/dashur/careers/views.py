@@ -82,7 +82,7 @@ class JobPositionListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             position = serializer.save()
-            logger.info(f"New job position created: {position.title} by {request.user.email}")
+            logger.info(f"Job position created: {position.title} by {request.user.email}")
             
             response_serializer = JobPositionSerializer(position)
             return api_response(
@@ -222,7 +222,7 @@ class JobApplicationListCreateView(FileUploadAPIView):
         
         if serializer.is_valid():
             application = serializer.save()
-            logger.info(f"New job application: {application.full_name} for {application.position.title}")
+            logger.info(f"Job application submitted: {application.full_name} for {application.position.title}")
             
             response_serializer = JobApplicationSerializer(application)
             return api_response(
@@ -289,7 +289,7 @@ class JobApplicationDetailView(FileUploadAPIView):
                     changed_by=request.user,
                     notes=request.data.get('status_notes', '')
                 )
-                logger.info(f"Application status updated: {application.full_name} - {old_status} → {application.status}")
+                logger.info(f"Application status changed: {application.full_name} - {old_status} → {application.status} by {request.user.email}")
             
             response_serializer = JobApplicationDetailSerializer(application)
             return api_response(

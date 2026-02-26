@@ -10,14 +10,34 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
+# Generate a secure key with: python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+SECRET_KEY = config('SECRET_KEY', default=None)
+
+# Generate a secure secret key for development if none provided
+if not SECRET_KEY:
+    import secrets
+    import string
+    # Generate a 50-character secure key for development
+    chars = string.ascii_letters + string.digits + string.punctuation.replace('"', '').replace("'", '')
+    SECRET_KEY = ''.join(secrets.choice(chars) for _ in range(50))
+    print(f"Generated development SECRET_KEY: {SECRET_KEY}")
+    print("Set SECRET_KEY environment variable for production use")
 
 # Validate critical environment variables in production
 if config('DJANGO_ENVIRONMENT', default='development') == 'production':
-    required_vars = ['SECRET_KEY']
-    for var in required_vars:
-        if not config(var):
-            raise ValueError(f"Environment variable '{var}' is required in production")
+    # Check if SECRET_KEY is set and not the default insecure value
+    if not SECRET_KEY or SECRET_KEY == 'django-insecure-change-me-in-production':
+        raise ValueError(
+            "SECURE SECRET_KEY is required in production. "
+            "Generate one with: python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'"
+        )
+    
+    # Additional security validation
+    if len(SECRET_KEY) < 50:
+        raise ValueError("SECRET_KEY must be at least 50 characters long for production")
+    
+    if 'django-insecure' in SECRET_KEY.lower():
+        raise ValueError("SECRET_KEY cannot contain 'django-insecure' in production")
 
 # Application definition
 INSTALLED_APPS = [

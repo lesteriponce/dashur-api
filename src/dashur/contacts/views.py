@@ -71,7 +71,7 @@ class ContactSubmissionListCreateView(generics.ListCreateAPIView):
         
         if serializer.is_valid():
             submission = serializer.save()
-            logger.info(f"New contact submission: {submission.full_name} - {submission.subject}")
+            logger.info(f"Contact form submitted: {submission.full_name} - {submission.subject}")
             
             # Send notification email to admin
             try:
@@ -243,7 +243,7 @@ class ContactResponseListCreateView(generics.ListCreateAPIView):
         
         if serializer.is_valid():
             response = serializer.save()
-            logger.info(f"Contact response created for: {response.submission.full_name}")
+            logger.info(f"Contact response sent: {response.submission.full_name}")
             
             # Send response email to submitter
             try:
