@@ -4,7 +4,7 @@ Serializers for the careers app.
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import JobPosition, JobApplication, ApplicationStatusHistory
-from utils import validate_file_upload
+from dashur.utils import api_response, validate_file_upload
 
 User = get_user_model()
 

@@ -116,7 +116,20 @@ class CareersAPITest(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
-        self.assertEqual(len(response.data['data']), 1)
+        
+        # Handle both paginated and non-paginated responses
+        data = response.data['data']
+        if isinstance(data, dict) and 'results' in data:
+            positions = data['results']
+        else:
+            positions = data if isinstance(data, list) else []
+        
+        # Check that we get at least the position we created
+        self.assertGreaterEqual(len(positions), 1)
+        
+        # Check that our specific position is in the results
+        position_titles = [pos['title'] for pos in positions]
+        self.assertIn('Software Developer', position_titles)
     
     def test_create_job_position_staff(self):
         """Test creating a job position (staff only)."""

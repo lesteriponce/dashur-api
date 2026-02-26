@@ -5,7 +5,7 @@ from .base import *
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
 
 # Database for development (SQLite for simplicity)
 DATABASES = {
@@ -28,6 +28,10 @@ CORS_ALLOW_CREDENTIALS = True
 # Email backend for development
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# Default email settings for contact forms
+DEFAULT_FROM_EMAIL = 'noreply@dashur.com'
+ADMIN_EMAIL = 'admin@dashur.com'
+
 # Security settings for development (relaxed)
 SECURE_SSL_REDIRECT = False
 SECURE_BROWSER_XSS_FILTER = False
@@ -37,14 +41,19 @@ X_FRAME_OPTIONS = 'DENY'
 # Debug toolbar (optional)
 try:
     import debug_toolbar
-    INSTALLED_APPS += ['debug_toolbar']
-    MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
-    INTERNAL_IPS = ['127.0.0.1']
-    DEBUG_TOOLBAR_CONFIG = {
-        'SHOW_TOOLBAR_CALLBACK': lambda request: True,
-        'RESULTS_CACHE_SIZE': 100,
-    }
-    print("Debug toolbar: ENABLED")
+    # Only enable debug toolbar if not in testing
+    import sys
+    if 'test' not in sys.argv:
+        INSTALLED_APPS += ['debug_toolbar']
+        MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
+        INTERNAL_IPS = ['127.0.0.1']
+        DEBUG_TOOLBAR_CONFIG = {
+            'SHOW_TOOLBAR_CALLBACK': lambda request: True,
+            'RESULTS_CACHE_SIZE': 100,
+        }
+        print("Debug toolbar: ENABLED")
+    else:
+        print("Debug toolbar: DISABLED (testing)")
 except ImportError:
     print("Debug toolbar: DISABLED (debug_toolbar not installed)")
     # Optional: Install with: pip install django-debug-toolbar

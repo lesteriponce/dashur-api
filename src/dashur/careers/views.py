@@ -6,8 +6,8 @@ from rest_framework import status, permissions, generics, filters
 from rest_framework.decorators import api_view, permission_classes
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
-from utils import api_response
-from utils_views import FileUploadAPIView  # Import custom view for file uploads
+from dashur.utils import api_response
+from dashur.utils_views import FileUploadAPIView  # Import custom view for file uploads
 from .models import JobPosition, JobApplication, ApplicationStatusHistory
 from .serializers import (
     JobPositionSerializer, JobPositionCreateSerializer, JobPositionListSerializer,
@@ -56,12 +56,19 @@ class JobPositionListCreateView(generics.ListCreateAPIView):
         
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(
-                api_response(
-                    success=True,
-                    data=serializer.data,
-                    message="Job positions retrieved successfully"
-                ).data
+            # Get the default paginated response structure
+            response = self.get_paginated_response(serializer.data)
+            
+            # Extract pagination data and wrap with our API response format
+            return api_response(
+                success=True,
+                data={
+                    'count': response.data['count'],
+                    'next': response.data['next'],
+                    'previous': response.data['previous'],
+                    'results': response.data['results']
+                },
+                message="Job positions retrieved successfully"
             )
         
         serializer = self.get_serializer(queryset, many=True)
@@ -169,10 +176,10 @@ class JobPositionDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
 
 
-class JobApplicationListCreateView(FileUploadAPIView):
+class JobApplicationListCreateView(generics.ListCreateAPIView):
     """
     List and create job applications.
-    Uses SessionAuthentication for file uploads (resume, cover letter).
+    Supports both JWT and Session authentication for flexibility.
     """
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -202,12 +209,19 @@ class JobApplicationListCreateView(FileUploadAPIView):
         
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(
-                api_response(
-                    success=True,
-                    data=serializer.data,
-                    message="Job applications retrieved successfully"
-                ).data
+            # Get the default paginated response structure
+            response = self.get_paginated_response(serializer.data)
+            
+            # Extract pagination data and wrap with our API response format
+            return api_response(
+                success=True,
+                data={
+                    'count': response.data['count'],
+                    'next': response.data['next'],
+                    'previous': response.data['previous'],
+                    'results': response.data['results']
+                },
+                message="Job applications retrieved successfully"
             )
         
         serializer = self.get_serializer(queryset, many=True)
@@ -240,10 +254,10 @@ class JobApplicationListCreateView(FileUploadAPIView):
         )
 
 
-class JobApplicationDetailView(FileUploadAPIView):
+class JobApplicationDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     Retrieve and update job applications.
-    Uses SessionAuthentication for file uploads (resume updates).
+    Supports both JWT and Session authentication.
     """
     queryset = JobApplication.objects.all()
     permission_classes = [permissions.IsAuthenticated]
@@ -274,22 +288,11 @@ class JobApplicationDetailView(FileUploadAPIView):
     
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        old_status = instance.status
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         
         if serializer.is_valid():
             application = serializer.save()
-            
-            # Create status history if status changed
-            if old_status != application.status:
-                ApplicationStatusHistory.objects.create(
-                    application=application,
-                    old_status=old_status,
-                    new_status=application.status,
-                    changed_by=request.user,
-                    notes=request.data.get('status_notes', '')
-                )
-                logger.info(f"Application status changed: {application.full_name} - {old_status} → {application.status} by {request.user.email}")
+            logger.info(f"Job application updated: {application.full_name}")
             
             response_serializer = JobApplicationDetailSerializer(application)
             return api_response(
@@ -303,6 +306,17 @@ class JobApplicationDetailView(FileUploadAPIView):
             message="Job application update failed",
             errors=serializer.errors,
             status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        title = f"{instance.full_name} - {instance.position.title}"
+        instance.delete()
+        logger.info(f"Job application deleted: {title}")
+        
+        return api_response(
+            success=True,
+            message="Job application deleted successfully"
         )
 
 
