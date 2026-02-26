@@ -235,6 +235,19 @@ WAGTAILADMIN_BASE_URL = 'http://localhost:8000'
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 
+# Logging Directory Setup
+# Ensure logs directory exists for all environments
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+LOGS_DIR_EXISTS = False
+try:
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    LOGS_DIR_EXISTS = True
+except OSError as e:
+    # Fallback to console logging if directory creation fails
+    import sys
+    print(f"Warning: Could not create logs directory {LOGS_DIR}: {e}", file=sys.stderr)
+    print("Falling back to console logging only", file=sys.stderr)
+
 # Logging Configuration
 LOGGING = {
     'version': 1,
@@ -250,14 +263,6 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
-            'maxBytes': 1024*1024*5,  # 5MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
@@ -281,6 +286,22 @@ LOGGING = {
         },
     },
 }
+
+# Add file handler only if logs directory exists
+if LOGS_DIR_EXISTS:
+    LOGGING['handlers']['file'] = {
+        'level': 'INFO',
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': os.path.join(LOGS_DIR, 'django.log'),
+        'maxBytes': 1024*1024*5,  # 5MB
+        'backupCount': 5,
+        'formatter': 'verbose',
+    }
+    
+    # Add file handler to loggers
+    LOGGING['loggers']['django']['handlers'].append('file')
+    LOGGING['loggers']['dashur']['handlers'].append('file')
+    LOGGING['root']['handlers'].append('file')
 
 # Celery Configuration
 CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
