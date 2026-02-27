@@ -165,8 +165,12 @@ class AdminUser(models.Model):
     
     def save(self, *args, **kwargs) -> None:
         """Override save to ensure the user is also saved."""
-        if self.user:
-            self.user.save()
+        if self.user and not hasattr(self, '_saving_user'):
+            self._saving_user = True
+            try:
+                self.user.save()
+            finally:
+                delattr(self, '_saving_user')
         super().save(*args, **kwargs)
 
 
@@ -174,27 +178,117 @@ class AdminUser(models.Model):
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+
+class CMSUser(models.Model):
+    """
+    CMS user model for content management system access.
+    Separate from admin users - these users can access API docs and manage content.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cms_user')
+    is_content_manager = models.BooleanField(default=False, verbose_name='Content Manager')
+    is_api_viewer = models.BooleanField(default=True, verbose_name='API Viewer')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated At')
+    
+    class Meta:
+        db_table = 'cms_users'
+        verbose_name = 'CMS User'
+        verbose_name_plural = 'CMS Users'
+        ordering = ['-created_at']
+    
+    def __str__(self) -> str:
+        return f"{self.user.email} (CMS: {'Manager' if self.is_content_manager else 'Viewer'})"
+    
+    @property
+    def email(self) -> str:
+        """Get the CMS user's email."""
+        return self.user.email
+    
+    @property
+    def first_name(self) -> str:
+        """Get the CMS user's first name."""
+        return self.user.first_name
+    
+    @property
+    def last_name(self) -> str:
+        """Get the CMS user's last name."""
+        return self.user.last_name
+    
+    @property
+    def full_name(self) -> str:
+        """Get the CMS user's full name."""
+        return self.user.full_name
+    
+    @property
+    def is_active(self) -> bool:
+        """Get the CMS user's active status."""
+        return self.user.is_active
+    
+    def has_api_access(self) -> bool:
+        """Check if user has API documentation access."""
+        return self.is_api_viewer and self.is_active
+    
+    def has_content_access(self) -> bool:
+        """Check if user has content management access."""
+        return self.is_content_manager and self.is_active
+    
+    def set_password(self, password: str) -> None:
+        """Set the CMS user's password."""
+        self.user.set_password(password)
+        self.user.save()
+    
+    def save(self, *args, **kwargs) -> None:
+        """Override save to ensure the user is also saved."""
+        if self.user and not hasattr(self, '_saving_user'):
+            self._saving_user = True
+            try:
+                self.user.save()
+            finally:
+                delattr(self, '_saving_user')
+        super().save(*args, **kwargs)
+
+
 @receiver(post_save, sender=User)
 def create_user_related_objects(sender, instance, created, **kwargs):
-    """Create UserProfile and UserPreference when a new User is created."""
+    """Create UserProfile, UserPreference, and CMSUser when a new User is created."""
     if created:
         try:
             UserProfile.objects.get_or_create(user=instance)
             UserPreference.objects.get_or_create(user=instance)
-            logger.info(f"Created profile and preferences for user: {instance.email}")
+            # Create CMSUser by default for all users (can be controlled via admin)
+            CMSUser.objects.get_or_create(user=instance)
+            logger.info(f"Created profile, preferences, and CMS user for user: {instance.email}")
         except Exception as e:
             logger.error(f"Error creating user objects for {instance.email}: {str(e)}")
 
 @receiver(post_save, sender=User)
 def save_user_related_objects(sender, instance, **kwargs):
-    """Save UserProfile and UserPreference when User is saved."""
+    """Save UserProfile, UserPreference, and CMSUser when User is saved."""
     try:
         if hasattr(instance, 'profile'):
             instance.profile.save()
         if hasattr(instance, 'preferences'):
             instance.preferences.save()
+        if hasattr(instance, 'cms_user'):
+            instance.cms_user.save()
     except Exception as e:
         logger.error(f"Error saving user objects for {instance.email}: {str(e)}")
+
+
+# Prevent recursion in CMSUser and AdminUser save methods
+from django.db.models.signals import pre_save
+
+@receiver(pre_save, sender=CMSUser)
+def prevent_cms_user_recursion(sender, instance, **kwargs):
+    """Prevent recursion when saving CMSUser."""
+    if hasattr(instance, '_saving_user'):
+        return False
+
+@receiver(pre_save, sender=AdminUser)
+def prevent_admin_user_recursion(sender, instance, **kwargs):
+    """Prevent recursion when saving AdminUser."""
+    if hasattr(instance, '_saving_user'):
+        return False
 
 
 class UserActivity(models.Model):
@@ -286,3 +380,35 @@ class UserPreference(models.Model):
     
     def __str__(self):
         return f"{self.user.email} Preferences"
+
+
+class CMSSession(models.Model):
+    """
+    Model to track CMS user sessions for security monitoring.
+    """
+    cms_user = models.ForeignKey(
+        CMSUser,
+        on_delete=models.CASCADE,
+        related_name='cms_sessions',
+        verbose_name='CMS User'
+    )
+    session_key = models.CharField(max_length=40, unique=True, verbose_name='Session Key')
+    ip_address = models.GenericIPAddressField(verbose_name='IP Address')
+    user_agent = models.TextField(blank=True, null=True, verbose_name='User Agent')
+    is_active = models.BooleanField(default=True, verbose_name='Active')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
+    last_activity = models.DateTimeField(auto_now=True, verbose_name='Last Activity')
+    
+    class Meta:
+        db_table = 'cms_sessions'
+        verbose_name = 'CMS Session'
+        verbose_name_plural = 'CMS Sessions'
+        ordering = ['-last_activity']
+        indexes = [
+            models.Index(fields=['cms_user', 'is_active']),
+            models.Index(fields=['session_key']),
+            models.Index(fields=['last_activity']),
+        ]
+    
+    def __str__(self):
+        return f"{self.cms_user.user.email} - {self.session_key[:8]}..."

@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'authentication',
+    'cms_auth',
     'careers', 
     'contacts',
 ]
@@ -82,6 +83,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'dashur.middleware.CMSAuthenticationMiddleware',
+    'dashur.middleware.SecurityHeadersMiddleware',
+    'dashur.middleware.RateLimitMiddleware',
+    'dashur.middleware.RequestLoggingMiddleware',
+    'dashur.middleware.APIMiddleware',
 ]
 
 ROOT_URLCONF = 'dashur.urls'

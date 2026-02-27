@@ -32,6 +32,9 @@ def api_root(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     
+    # CMS web interface
+    path('cms/', include(('cms_auth.urls', 'cms_auth'), namespace='cms_auth')),
+    
     # API root
     path('api/', api_root, name='api_root'),
     
