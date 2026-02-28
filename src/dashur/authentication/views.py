@@ -3,6 +3,7 @@ API views for authentication app.
 """
 import logging
 import secrets
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -23,6 +24,11 @@ User = get_user_model()
 logger = logging.getLogger('dashur')
 
 
+@extend_schema(
+    request=UserRegistrationSerializer,
+    responses={201: UserSerializer},
+    description="Register a new user"
+)
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def register(request):
@@ -58,6 +64,11 @@ def register(request):
     )
 
 
+@extend_schema(
+    request=UserLoginSerializer,
+    responses={200: UserSerializer},
+    description="Login user and return JWT tokens"
+)
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def login(request):
