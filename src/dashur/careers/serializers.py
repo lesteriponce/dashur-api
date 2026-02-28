@@ -2,9 +2,11 @@
 Serializers for the careers app.
 """
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from django.contrib.auth import get_user_model
 from .models import JobPosition, JobApplication, ApplicationStatusHistory
 from dashur.utils import api_response, validate_file_upload
+from typing import Dict, Any
 
 User = get_user_model()
 
@@ -16,6 +18,18 @@ class JobPositionSerializer(serializers.ModelSerializer):
     salary_range = serializers.ReadOnlyField()
     is_active = serializers.ReadOnlyField()
     application_count = serializers.ReadOnlyField()
+    
+    @extend_schema_field(str)
+    def salary_range(self) -> str:
+        return f"${self.salary_min:,} - ${self.salary_max:,}"
+    
+    @extend_schema_field(bool) 
+    def is_active(self) -> bool:
+        return self.status == 'active'
+    
+    @extend_schema_field(int)
+    def application_count(self) -> int:
+        return self.jobapplication_set.count()
     
     class Meta:
         model = JobPosition
@@ -63,6 +77,14 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     department = serializers.CharField(source='position.department', read_only=True)
     full_name = serializers.ReadOnlyField()
     is_pending = serializers.ReadOnlyField()
+    
+    @extend_schema_field(str)
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+    
+    @extend_schema_field(bool)
+    def is_pending(self) -> bool:
+        return self.status == 'pending'
     
     class Meta:
         model = JobApplication
