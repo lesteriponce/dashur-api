@@ -2,6 +2,8 @@
 API views for authentication app.
 """
 import logging
+import secrets
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -9,16 +11,24 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.contrib.sessions.models import Session
 from dashur.utils import api_response, get_client_ip
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer,
-    UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer, UserSerializer
+    UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer, UserSerializer,
+    CMSLoginSerializer, CMSUserSerializer, CMSSessionSerializer
 )
+from .models import CMSUser, CMSSession
 
 User = get_user_model()
 logger = logging.getLogger('dashur')
 
 
+@extend_schema(
+    request=UserRegistrationSerializer,
+    responses={201: UserSerializer},
+    description="Register a new user"
+)
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def register(request):
@@ -54,6 +64,11 @@ def register(request):
     )
 
 
+@extend_schema(
+    request=UserLoginSerializer,
+    responses={200: UserSerializer},
+    description="Login user and return JWT tokens"
+)
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def login(request):
@@ -246,3 +261,209 @@ class CustomTokenRefreshView(TokenRefreshView):
                 errors={'detail': str(e)},
                 status_code=status.HTTP_401_UNAUTHORIZED
             )
+
+
+# CMS Authentication Views
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def cms_login(request):
+    """
+    CMS login using session authentication for API documentation access.
+    """
+    serializer = CMSLoginSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        user = serializer.validated_data['user']
+        cms_user = serializer.validated_data['cms_user']
+        
+        # Create Django session
+        from django.contrib.auth import login
+        login(request, user)
+        
+        # Create CMS session record
+        session_key = request.session.session_key or secrets.token_hex(20)
+        cms_session, created = CMSSession.objects.get_or_create(
+            cms_user=cms_user,
+            session_key=session_key,
+            defaults={
+                'ip_address': get_client_ip(request),
+                'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+            }
+        )
+        
+        if not created:
+            # Update existing session
+            cms_session.ip_address = get_client_ip(request)
+            cms_session.user_agent = request.META.get('HTTP_USER_AGENT', '')
+            cms_session.is_active = True
+            cms_session.last_activity = timezone.now()
+            cms_session.save()
+        
+        logger.info(f"CMS login: {user.email} from IP: {get_client_ip(request)}")
+        
+        return api_response(
+            success=True,
+            data={
+                'cms_user': CMSUserSerializer(cms_user).data,
+                'session_key': session_key,
+            },
+            message="CMS login successful"
+        )
+    
+    return api_response(
+        success=False,
+        message="CMS login failed",
+        errors=serializer.errors,
+        status_code=status.HTTP_401_UNAUTHORIZED
+    )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def cms_logout(request):
+    """
+    CMS logout by deactivating the session.
+    """
+    try:
+        # Deactivate CMS session
+        session_key = request.session.session_key
+        if session_key:
+            CMSSession.objects.filter(
+                cms_user__user=request.user,
+                session_key=session_key,
+                is_active=True
+            ).update(is_active=False)
+        
+        # Logout Django session
+        from django.contrib.auth import logout
+        logout(request)
+        
+        logger.info(f"CMS logout: {request.user.email}")
+        
+        return api_response(
+            success=True,
+            message="CMS logout successful"
+        )
+    except Exception as e:
+        logger.error(f"CMS logout error: {str(e)}")
+        return api_response(
+            success=False,
+            message="CMS logout failed",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def cms_profile(request):
+    """
+    Get CMS user profile information.
+    """
+    try:
+        cms_user = request.user.cms_user
+        serializer = CMSUserSerializer(cms_user)
+        return api_response(
+            success=True,
+            data=serializer.data,
+            message="CMS profile retrieved successfully"
+        )
+    except CMSUser.DoesNotExist:
+        return api_response(
+            success=False,
+            message="CMS user not found",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"CMS profile retrieval error: {str(e)}")
+        return api_response(
+            success=False,
+            message="Failed to retrieve CMS profile",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def cms_sessions(request):
+    """
+    Get active CMS sessions for the current user.
+    """
+    try:
+        cms_user = request.user.cms_user
+        sessions = CMSSession.objects.filter(
+            cms_user=cms_user,
+            is_active=True
+        ).order_by('-last_activity')
+        
+        serializer = CMSSessionSerializer(sessions, many=True)
+        return api_response(
+            success=True,
+            data=serializer.data,
+            message="CMS sessions retrieved successfully"
+        )
+    except CMSUser.DoesNotExist:
+        return api_response(
+            success=False,
+            message="CMS user not found",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"CMS sessions retrieval error: {str(e)}")
+        return api_response(
+            success=False,
+            message="Failed to retrieve CMS sessions",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def cms_revoke_session(request, session_key):
+    """
+    Revoke a specific CMS session.
+    """
+    try:
+        cms_user = request.user.cms_user
+        
+        # Don't allow revoking current session
+        current_session_key = request.session.session_key
+        if session_key == current_session_key:
+            return api_response(
+                success=False,
+                message="Cannot revoke current session",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Revoke the session
+        revoked_count = CMSSession.objects.filter(
+            cms_user=cms_user,
+            session_key=session_key,
+            is_active=True
+        ).update(is_active=False)
+        
+        if revoked_count == 0:
+            return api_response(
+                success=False,
+                message="Session not found or already revoked",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        logger.info(f"CMS session revoked: {session_key} by {request.user.email}")
+        
+        return api_response(
+            success=True,
+            message="CMS session revoked successfully"
+        )
+    except CMSUser.DoesNotExist:
+        return api_response(
+            success=False,
+            message="CMS user not found",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"CMS session revocation error: {str(e)}")
+        return api_response(
+            success=False,
+            message="Failed to revoke CMS session",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

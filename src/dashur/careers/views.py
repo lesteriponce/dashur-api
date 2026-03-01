@@ -37,6 +37,10 @@ class JobPositionListCreateView(generics.ListCreateAPIView):
         return JobPositionListSerializer
     
     def get_queryset(self):
+        # Handle DRF Spectacular schema generation
+        if getattr(self, 'swagger_fake_view', False):
+            return JobPosition.objects.none()
+            
         queryset = JobPosition.objects.all()
         
         # Filter by status for non-admin users
@@ -194,6 +198,10 @@ class JobApplicationListCreateView(generics.ListCreateAPIView):
         return JobApplicationSerializer
     
     def get_queryset(self):
+        # Handle DRF Spectacular schema generation
+        if getattr(self, 'swagger_fake_view', False):
+            return JobApplication.objects.none()
+            
         user = self.request.user
         
         # Non-staff users can only see their own applications

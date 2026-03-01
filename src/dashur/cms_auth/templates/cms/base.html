@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashur CMS{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #f9fafb;
+            background-color: #1f2937;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        .navbar {
+            background: #374151;
+            border-bottom: 1px solid #4b5563;
+            padding: 0.75rem 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .brand {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #f9fafb;
+            text-decoration: none;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: #d1d5db;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-links a:hover {
+            color: #f9fafb;
+            background-color: #4b5563;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .btn-primary {
+            background-color: #6366f1;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #5558e3;
+        }
+        
+        .btn-secondary {
+            background-color: #4b5563;
+            color: #f9fafb;
+            border: 1px solid #6b7280;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #6b7280;
+            color: #f9fafb;
+        }
+        
+        .main-content {
+            padding: 3rem 0;
+            min-height: calc(100vh - 120px);
+        }
+        
+        .card {
+            background: #374151;
+            border: 1px solid #4b5563;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            padding: 2.5rem;
+            margin-bottom: 2.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: #d1d5db;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #4b5563;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            background-color: #1f2937;
+            color: #f9fafb;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            border: 1px solid;
+            font-size: 0.875rem;
+        }
+        
+        .alert-success {
+            background-color: #064e3b;
+            color: #6ee7b7;
+            border-color: #047857;
+        }
+        
+        .alert-error {
+            background-color: #7f1d1d;
+            color: #fca5a5;
+            border-color: #991b1b;
+        }
+        
+        .footer {
+            background-color: #111827;
+            color: #9ca3af;
+            text-align: center;
+            padding: 1.5rem 0;
+            border-top: 1px solid #374151;
+            font-size: 0.875rem;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .mb-3 {
+            margin-bottom: 1.5rem;
+        }
+        
+        .mt-3 {
+            margin-top: 1.5rem;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+        
+        .quick-links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .stats-card {
+            background: #374151;
+            border: 1px solid #4b5563;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stats-card h3 {
+            color: #6366f1;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .stats-card p {
+            color: #9ca3af;
+            margin: 0;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        h1, h2, h3 {
+            color: #f9fafb;
+            font-weight: 600;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .description-list {
+            display: grid;
+            gap: 1.5rem;
+        }
+        
+        .description-list dt {
+            font-weight: 500;
+            color: #d1d5db;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .description-list dd {
+            color: #f9fafb;
+            margin-left: 0;
+            font-size: 0.875rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 16px;
+            }
+            
+            .navbar-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .main-content {
+                padding: 2rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-content">
+                <a href="{% url 'cms_auth:cms_dashboard' %}" class="brand">Dashur CMS</a>
+                {% if user.is_authenticated %}
+                    <div class="nav-links">
+                        <a href="{% url 'cms_auth:cms_dashboard' %}">Dashboard</a>
+                        <a href="{% url 'cms_auth:cms_profile' %}">Profile</a>
+                        <a href="/api/docs/" target="_blank">API Docs</a>
+                        <form method="post" action="{% url 'cms_auth:cms_logout' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-secondary">Logout</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 Dashur CMS. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,92 @@
+{% extends 'cms/base.html' %}
+
+{% block title %}Dashboard - Dashur CMS{% endblock %}
+
+{% block content %}
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card">
+    <h1>Welcome to Dashur CMS</h1>
+    <p style="margin-bottom: 0; color: #9ca3af;">Hello, {{ user.first_name }}! You have successfully logged into the Content Management System.</p>
+</div>
+
+<div class="grid">
+    <div class="stats-card">
+        <h3>{{ cms_user.is_content_manager|yesno:"Manager,Viewer" }}</h3>
+        <p>Access Level</p>
+    </div>
+    
+    <div class="stats-card">
+        <h3>{{ cms_user.is_api_viewer|yesno:"Yes,No" }}</h3>
+        <p>API Documentation Access</p>
+    </div>
+    
+    <div class="stats-card">
+        <h3>{{ user.email }}</h3>
+        <p>Account Email</p>
+    </div>
+</div>
+
+<div style="margin-bottom: 3rem;"></div>
+
+<div class="card">
+    <h2>Quick Links</h2>
+    <div class="quick-links-grid">
+        <a href="/api/docs/" target="_blank" class="btn btn-primary">
+            API Documentation
+        </a>
+        <a href="/api/redoc/" target="_blank" class="btn btn-secondary">
+            ReDoc Documentation
+        </a>
+        <a href="{% url 'cms_auth:cms_profile' %}" class="btn btn-secondary">
+            Manage Profile
+        </a>
+        <a href="/admin/" target="_blank" class="btn btn-secondary">
+            Admin Panel
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Account Information</h2>
+    <dl class="description-list">
+        <dt>Name</dt>
+        <dd>{{ user.get_full_name }}</dd>
+        
+        <dt>Email</dt>
+        <dd>{{ user.email }}</dd>
+        
+        <dt>Account Type</dt>
+        <dd>
+            <span style="color: {% if cms_user.is_content_manager %}#10b981{% else %}#9ca3af{% endif %}; font-weight: 500;">
+                {{ cms_user.is_content_manager|yesno:"Content Manager,API Viewer" }}
+            </span>
+        </dd>
+        
+        <dt>Member Since</dt>
+        <dd>{{ user.date_joined|date:"F d, Y" }}</dd>
+        
+        <dt>Last Login</dt>
+        <dd>{{ user.last_login|date:"F d, Y, P" }}</dd>
+    </dl>
+</div>
+
+{% if cms_user.is_content_manager %}
+<div class="card" style="border-left: 4px solid #10b981;">
+    <h2>Content Manager Features</h2>
+    <p>As a Content Manager, you have access to additional features:</p>
+    <ul style="margin-left: 1.5rem; margin-top: 0.5rem; color: #d1d5db;">
+        <li>Full API documentation access</li>
+        <li>Content management capabilities</li>
+        <li>Advanced user session management</li>
+        <li>System monitoring tools</li>
+    </ul>
+</div>
+{% endif %}
+{% endblock %}

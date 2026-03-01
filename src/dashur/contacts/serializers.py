@@ -2,8 +2,10 @@
 Serializers for the contacts app.
 """
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from .models import ContactSubmission, ContactResponse
 from dashur.utils import get_client_ip
+from typing import Dict, Any
 
 
 class ContactSubmissionSerializer(serializers.ModelSerializer):
@@ -13,6 +15,18 @@ class ContactSubmissionSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
     is_new = serializers.ReadOnlyField()
     is_urgent = serializers.ReadOnlyField()
+    
+    @extend_schema_field(str)
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+    
+    @extend_schema_field(bool)
+    def is_new(self) -> bool:
+        return self.status == 'new'
+    
+    @extend_schema_field(bool)
+    def is_urgent(self) -> bool:
+        return self.priority == 'urgent'
     
     class Meta:
         model = ContactSubmission
@@ -81,15 +95,8 @@ class ContactResponseSerializer(serializers.ModelSerializer):
     responded_by_name = serializers.CharField(source='responded_by.get_full_name', read_only=True)
     submission_info = serializers.SerializerMethodField()
     
-    class Meta:
-        model = ContactResponse
-        fields = [
-            'id', 'submission', 'submission_info', 'responded_by', 'responded_by_name',
-            'response_message', 'response_email_sent', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'responded_by', 'created_at', 'updated_at']
-    
-    def get_submission_info(self, obj):
+    @extend_schema_field(Dict[str, Any])
+    def get_submission_info(self, obj) -> Dict[str, Any]:
         """Get basic submission information."""
         return {
             'id': obj.submission.id,
@@ -98,6 +105,14 @@ class ContactResponseSerializer(serializers.ModelSerializer):
             'subject': obj.submission.subject,
             'created_at': obj.submission.created_at
         }
+    
+    class Meta:
+        model = ContactResponse
+        fields = [
+            'id', 'submission', 'submission_info', 'responded_by', 'responded_by_name',
+            'response_message', 'response_email_sent', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'responded_by', 'created_at', 'updated_at']
 
 
 class ContactResponseCreateSerializer(serializers.ModelSerializer):
